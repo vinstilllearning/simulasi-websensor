@@ -1,0 +1,9 @@
+{
+  "target": "esp32:esp32:esp32",
+  "arduino_cli": "1.3.1",
+  "esp32_core": "3.3.6",
+  "libraries": {
+    "FastLED": {"version": "3.9.20", "commit": "a7dda768ea24c5b9a32fdd7835c7df4079f4076d"},
+    "ArduinoJson": {"version": "7.4.2", "commit": "733bc4ee82630c88c0a619a883cd3a206efae977"}
+  }
+}

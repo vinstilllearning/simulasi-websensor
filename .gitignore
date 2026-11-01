@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+tests/dashboard-*.png
+build/
+firmware/LampuHiasPintar/build/
+firmware/LampuHiasPintar/secrets.h
