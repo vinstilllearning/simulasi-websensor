@@ -1,5 +1,7 @@
 # LUMA / 15
 
+**Classroom presentation site:** [docs/index.html](docs/index.html) opens directly in simulation, including six Indonesian presentation scenarios and animated virtual sensor controls. Deploy the `docs` folder; see [deployment instructions](docs/README.md). Netlify's publish directory is already configured in `netlify.toml`. No backend or ESP32 is required. This presentation page is separate from the firmware dashboard below.
+
 A complete local lighting instrument for the **original ESP32 / ESP32-WROOM Dev Module** and the hardware already present in the uploaded Lampu Hias Pintar sketch. The system pairs a nonblocking firmware state machine with a self-contained, responsive dashboard. It adds no imaginary motors or actuators: the only actuator is a 15-pixel WS2812B strip; the inputs are DHT11, LDR, MAX4466 and PIR.
 
 ## System blueprint
