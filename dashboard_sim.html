@@ -1,0 +1,2716 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💡 Lampu Hias Pintar — Liquid Glass Simulator</title>
+    <style>
+        :root {
+            --bg-deep: #07070c;
+            --bg-surface: #0f101a;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-bg-subtle: rgba(255, 255, 255, 0.03);
+            --glass-bg-active: rgba(255, 255, 255, 0.09);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.14);
+            --glass-border-subtle: 1px solid rgba(255, 255, 255, 0.08);
+            --glass-border-bright: 1px solid rgba(255, 255, 255, 0.28);
+            --glass-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.65), inset 0 1px 1px 0 rgba(255, 255, 255, 0.25);
+            --glass-shadow-sm: 0 8px 24px -4px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.18);
+            --acc-purple: #9d4edd;
+            --acc-blue: #3a86ff;
+            --acc-cyan: #00f0ff;
+            --acc-glow: rgba(157, 78, 221, 0.45);
+            --acc-blue-glow: rgba(58, 134, 255, 0.4);
+            --tx-primary: #ffffff;
+            --tx-secondary: #9da3ba;
+            --tx-muted: #62677f;
+            --ok: #00e676;
+            --warn: #ffab00;
+            --err: #ff5252;
+            --info: #40c4ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--tx-primary);
+            padding: 20px 14px 40px;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ── DYNAMIC AMBIENT BACKGROUND GLOW ── */
+        .ambient-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .ambient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.42;
+            mix-blend-mode: screen;
+            animation: floatGlow 22s ease-in-out infinite alternate;
+        }
+
+        .orb-orange {
+            width: 520px;
+            height: 520px;
+            background: radial-gradient(circle, rgba(255, 87, 34, 0.38) 0%, rgba(249, 115, 22, 0.15) 50%, transparent 75%);
+            top: 10%;
+            left: -140px;
+            animation-duration: 26s;
+        }
+
+        .orb-purple {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.36) 0%, rgba(139, 92, 246, 0.18) 50%, transparent 75%);
+            top: -40px;
+            right: -100px;
+            animation-duration: 30s;
+        }
+
+        .orb-blue {
+            width: 560px;
+            height: 560px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.34) 0%, rgba(37, 99, 235, 0.15) 50%, transparent 75%);
+            bottom: 5%;
+            right: 15%;
+            animation-duration: 24s;
+        }
+
+        .orb-green {
+            width: 440px;
+            height: 440px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, transparent 70%);
+            bottom: -80px;
+            left: 10%;
+            animation-duration: 28s;
+        }
+
+        @keyframes floatGlow {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            50% {
+                transform: translate(45px, 35px) scale(1.08);
+            }
+
+            100% {
+                transform: translate(-30px, 60px) scale(0.96);
+            }
+        }
+
+        .wrap {
+            max-width: 1240px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── LIQUID GLASS CARD CORE ── */
+        .glass {
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            background: var(--glass-bg);
+            border: var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            border-radius: 22px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0) 100%);
+            pointer-events: none;
+        }
+
+        /* ── BANNER ── */
+        .banner {
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(255, 171, 0, 0.08);
+            border: 1px solid rgba(255, 171, 0, 0.28);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            padding: 10px 18px;
+            font-size: .82rem;
+            color: #ffd54f;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .banner-icon {
+            font-size: 1.15rem;
+            filter: drop-shadow(0 0 8px rgba(255, 171, 0, 0.5));
+        }
+
+        /* ── HEADER ── */
+        header {
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: radial-gradient(circle at 30% 25%, #d8b4fe, #7c3aed 55%, #1e1035);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            box-shadow: 0 0 28px rgba(168, 85, 247, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .brand h1 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff 40%, #c4b5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-sub {
+            font-size: .75rem;
+            color: var(--tx-secondary);
+            margin-top: 2px;
+            letter-spacing: 0.01em;
+        }
+
+        .badges {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .badge {
+            font-size: .75rem;
+            font-weight: 500;
+            padding: 6px 13px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--tx-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.25s ease;
+        }
+
+        .badge:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.22);
+            color: #fff;
+        }
+
+        .badge.live {
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--ok);
+            border-color: rgba(0, 230, 118, 0.35);
+            box-shadow: 0 0 16px rgba(0, 230, 118, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--ok);
+            box-shadow: 0 0 8px var(--ok);
+            animation: pulseDot 1.6s infinite ease-in-out;
+        }
+
+        @keyframes pulseDot {
+
+            0%,
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.8);
+            }
+
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 0 0 6px rgba(0, 230, 118, 0);
+            }
+        }
+
+        /* ── GRID SYSTEM ── */
+        .grid {
+            display: grid;
+            grid-template-columns: 310px 1fr;
+            gap: 20px;
+        }
+
+        @media(max-width: 880px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── CARD STYLING ── */
+        .card {
+            padding: 20px;
+        }
+
+        .card h2 {
+            font-size: 1.02rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.01em;
+        }
+
+        /* ── LEFT COLUMN ── */
+        .left-col {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           PARALON PVC CYLINDER MODEL (S-CURVE SPIRAL DOTTED WAVE)
+        ════════════════════════════════════════════════════════*/
+        .pvc-visualizer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0 6px;
+            position: relative;
+        }
+
+        .pvc-stage {
+            width: 220px;
+            height: 510px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #pvcSvg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+            filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.85));
+        }
+
+        .pvc-pipe-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 200px;
+            font-size: .72rem;
+            color: var(--tx-muted);
+            margin-top: 8px;
+        }
+
+        .pvc-pipe-labels span {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 3px 9px;
+            border-radius: 8px;
+        }
+
+        .pvc-subtext {
+            font-size: .7rem;
+            color: var(--tx-secondary);
+            margin-top: 10px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* ── STATUS ROWS ── */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: .84rem;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: var(--tx-secondary);
+            font-weight: 500;
+        }
+
+        .chip {
+            font-size: .75rem;
+            font-weight: 600;
+            padding: 4px 11px;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+            transition: all 0.25s ease;
+        }
+
+        .chip-p {
+            background: rgba(168, 85, 247, 0.16);
+            color: #d8b4fe;
+            border: 1px solid rgba(168, 85, 247, 0.38);
+            box-shadow: 0 0 14px rgba(168, 85, 247, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+        }
+
+        .chip-g {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--ok);
+            border: 1px solid rgba(0, 230, 118, 0.38);
+            box-shadow: 0 0 14px rgba(0, 230, 118, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+        }
+
+        .chip-r {
+            background: rgba(255, 82, 82, 0.15);
+            color: var(--err);
+            border: 1px solid rgba(255, 82, 82, 0.38);
+        }
+
+        .chip-y {
+            background: rgba(255, 171, 0, 0.15);
+            color: var(--warn);
+            border: 1px solid rgba(255, 171, 0, 0.38);
+        }
+
+        /* ── RIGHT COLUMN ── */
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ── LIQUID GLASS MODE TABS (iOS SEGMENTED CONTROL) ── */
+        .tabs {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            background: rgba(15, 16, 26, 0.65);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            padding: 6px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+        }
+
+        @media(max-width: 580px) {
+            .tabs {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .tab {
+            background: transparent;
+            border: none;
+            color: var(--tx-secondary);
+            padding: 11px 6px;
+            font-size: .8rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            text-align: center;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tab:hover:not(.on) {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.05);
+        }
+
+        .tab.on {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.85), rgba(99, 102, 241, 0.85));
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.32);
+            box-shadow: 0 4px 20px rgba(168, 85, 247, 0.45), 0 0 12px rgba(59, 130, 246, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.45);
+            transform: translateY(-1px);
+        }
+
+        /* ── PANELS ── */
+        .panel {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel.on {
+            display: flex;
+            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── FORM ELEMENTS & LIQUID SLIDERS ── */
+        .fg {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .fr {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        label {
+            font-size: .83rem;
+            color: var(--tx-secondary);
+            font-weight: 500;
+        }
+
+        .vb {
+            font-size: .84rem;
+            font-weight: 700;
+            color: #d8b4fe;
+            background: rgba(168, 85, 247, 0.14);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 8px;
+            padding: 3px 10px;
+            min-width: 42px;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Custom iOS Liquid Range Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 7px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            outline: none;
+            transition: all 0.25s ease;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+        }
+
+        input[type=range]:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #ffffff, #c084fc 60%, #7e22ce);
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6), 0 0 14px rgba(168, 85, 247, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+        }
+
+        input[type=range]:active::-webkit-slider-thumb {
+            transform: scale(1.18);
+            box-shadow: 0 0 22px rgba(168, 85, 247, 0.9), 0 0 12px rgba(59, 130, 246, 0.8), inset 0 1px 1px #fff;
+        }
+
+        input[type=color] {
+            -webkit-appearance: none;
+            border: none;
+            width: 100%;
+            height: 48px;
+            border-radius: 12px;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        input[type=color]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type=color]::-webkit-color-swatch {
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+        }
+
+        input[type=number],
+        select {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: #fff;
+            outline: none;
+            font-size: .88rem;
+            width: 100%;
+            backdrop-filter: blur(16px);
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+            transition: all 0.25s ease;
+        }
+
+        input[type=number]:focus,
+        select:focus {
+            border-color: rgba(168, 85, 247, 0.6);
+            box-shadow: 0 0 16px rgba(168, 85, 247, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        select option {
+            background: #11121d;
+            color: #fff;
+        }
+
+        /* ── COLOR PREVIEW ── */
+        .cprev {
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: background .2s ease, box-shadow .2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .84rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+        }
+
+        /* ── RGB SLIDERS ── */
+        .rgb-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .rgb-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: center;
+            font-size: .75rem;
+            color: var(--tx-secondary);
+        }
+
+        .rgb-item input[type=range] {
+            height: 5px;
+        }
+
+        .rgb-item input[type=range].r-slider::-webkit-slider-thumb {
+            background: radial-gradient(circle at 35% 35%, #ff8a80, #ff5252);
+            box-shadow: 0 0 12px rgba(255, 82, 82, 0.7);
+        }
+
+        .rgb-item input[type=range].g-slider::-webkit-slider-thumb {
+            background: radial-gradient(circle at 35% 35%, #b9f6ca, #00e676);
+            box-shadow: 0 0 12px rgba(0, 230, 118, 0.7);
+        }
+
+        .rgb-item input[type=range].b-slider::-webkit-slider-thumb {
+            background: radial-gradient(circle at 35% 35%, #80d8ff, #40c4ff);
+            box-shadow: 0 0 12px rgba(64, 196, 255, 0.7);
+        }
+
+        /* ── EFEK GRID ── */
+        .efek-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px;
+        }
+
+        .echip {
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 13px;
+            padding: 12px 10px;
+            cursor: pointer;
+            font-size: .82rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            line-height: 1.45;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12);
+        }
+
+        .echip small {
+            color: var(--tx-muted);
+            font-weight: 400;
+            font-size: .7rem;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .echip:hover:not(.on) {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(168, 85, 247, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .echip.on {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(59, 130, 246, 0.18));
+            border: 1px solid rgba(168, 85, 247, 0.55);
+            color: #e9d5ff;
+            box-shadow: 0 4px 18px rgba(168, 85, 247, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+        }
+
+        .echip.on small {
+            color: #c084fc;
+        }
+
+        /* ── VU BARS ── */
+        .vu-wrap {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .vu-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 76px;
+        }
+
+        .vu-bar {
+            flex: 1;
+            border-radius: 3px 3px 0 0;
+            min-height: 3px;
+            transition: height .08s ease, background .08s ease;
+        }
+
+        .vu-axis {
+            display: flex;
+            justify-content: space-between;
+            font-size: .65rem;
+            color: var(--tx-muted);
+            margin-top: 5px;
+        }
+
+        /* ── SUHU GRADIENT BAR ── */
+        .temp-bar-wrap {
+            height: 16px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            margin-top: 4px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+        }
+
+        .temp-bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width .6s ease;
+            border-radius: 8px;
+            box-shadow: 0 0 12px rgba(255, 112, 67, 0.5);
+        }
+
+        .temp-markers {
+            display: flex;
+            justify-content: space-between;
+            font-size: .68rem;
+            color: var(--tx-muted);
+            margin-top: 4px;
+        }
+
+        /* ── POMODORO ── */
+        .pomo-box {
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 20px;
+            text-align: center;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .pomo-time {
+            font-size: 3.2rem;
+            font-weight: 800;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 4px;
+            line-height: 1;
+            text-shadow: 0 0 24px rgba(255, 255, 255, 0.3);
+        }
+
+        .pomo-lbl {
+            font-size: .75rem;
+            color: #d8b4fe;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .pomo-prog-wrap {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .pomo-prog {
+            height: 100%;
+            width: 0%;
+            border-radius: 5px;
+            transition: width .5s ease;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+        }
+
+        .pomo-sessions {
+            display: flex;
+            gap: 7px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .ps-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all .3s ease;
+        }
+
+        .ps-dot.done {
+            background: var(--ok);
+            border-color: rgba(0, 230, 118, 0.8);
+            box-shadow: 0 0 10px var(--ok);
+        }
+
+        .pomo-btns {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 9px;
+            margin-top: 14px;
+        }
+
+        /* ── SENSOR TELEMETRY GRID ── */
+        .sg {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        @media(max-width: 720px) {
+            .sg {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .si {
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 13px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all .25s ease;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12);
+        }
+
+        .si:hover {
+            border-color: rgba(168, 85, 247, 0.45);
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+        }
+
+        .si-lbl {
+            font-size: .72rem;
+            color: var(--tx-secondary);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 500;
+        }
+
+        .si-val {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+        }
+
+        .si-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+
+        .si-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width .4s ease;
+        }
+
+        .si.hi-ok {
+            border-color: rgba(0, 230, 118, 0.45) !important;
+            box-shadow: 0 0 16px rgba(0, 230, 118, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+        }
+
+        .si.hi-err {
+            border-color: rgba(255, 82, 82, 0.45) !important;
+        }
+
+        /* ── BUTTONS (LIQUID GLASS WITH SMOOTH TRANSITIONS & GLOW) ── */
+        .btn {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.85), rgba(99, 102, 241, 0.85));
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 11px 16px;
+            border-radius: 12px;
+            font-size: .88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 20px rgba(168, 85, 247, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.45);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, rgba(192, 132, 252, 0.95), rgba(129, 140, 248, 0.95));
+            box-shadow: 0 8px 28px rgba(168, 85, 247, 0.6), 0 0 16px rgba(59, 130, 246, 0.4), inset 0 1px 1px #fff;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(168, 85, 247, 0.4);
+        }
+
+        .btn-sm {
+            padding: 8px 13px;
+            font-size: .8rem;
+            border-radius: 10px;
+        }
+
+        .btn-sec {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-sec:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 0 14px rgba(255, 255, 255, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-ok {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.85));
+            border-color: rgba(110, 231, 183, 0.4);
+            box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-ok:hover {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.9), rgba(16, 185, 129, 0.95));
+            box-shadow: 0 6px 24px rgba(16, 185, 129, 0.55), inset 0 1px 1px #fff;
+            transform: translateY(-1px);
+        }
+
+        .btn-err {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(185, 28, 28, 0.85));
+            border-color: rgba(252, 165, 165, 0.4);
+            box-shadow: 0 4px 18px rgba(239, 68, 68, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-err:hover {
+            background: linear-gradient(135deg, rgba(248, 113, 113, 0.9), rgba(220, 38, 38, 0.95));
+            box-shadow: 0 6px 24px rgba(239, 68, 68, 0.55), inset 0 1px 1px #fff;
+            transform: translateY(-1px);
+        }
+
+        /* ── PRESETS ── */
+        .pset-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .pset {
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            color: #fff;
+            padding: 14px 10px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-size: .82rem;
+            text-align: center;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            line-height: 1.5;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12);
+        }
+
+        .pset:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+        }
+
+        .pset.on {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(59, 130, 246, 0.18));
+            border-color: rgba(168, 85, 247, 0.6);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+        }
+
+        .pb {
+            border-bottom: 3px solid #e0e0e0;
+        }
+
+        .ps {
+            border-bottom: 3px solid #ff9800;
+        }
+
+        .pt {
+            border-bottom: 3px solid #f44336;
+        }
+
+        /* ── AUTO INFO ── */
+        .auto-info {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .ai-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: .84rem;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .ai-row:last-child {
+            border-bottom: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           SIMULATION CONTROL PANEL (BOTTOM)
+        ════════════════════════════════════════════════════════*/
+        .sim-panel {
+            padding: 24px;
+        }
+
+        .sim-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #ff5722, #ffd93d, #00e676, #00f0ff, #9d4edd);
+            opacity: 0.8;
+        }
+
+        .sim-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        @media(max-width: 800px) {
+            .sim-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media(max-width: 520px) {
+            .sim-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sim-ctrl {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 14px;
+            padding: 13px;
+        }
+
+        .sim-hd {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: .82rem;
+        }
+
+        .sim-name {
+            color: var(--tx-secondary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sim-vb {
+            font-size: .84rem;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            min-width: 54px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .sim-ind {
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            margin-top: 1px;
+        }
+
+        .sim-ind-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width .2s ease;
+        }
+
+        /* iOS Toggle Switches */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: .84rem;
+        }
+
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-track {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all .3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .toggle input:checked+.toggle-track {
+            background: linear-gradient(135deg, #9d4edd, #3a86ff);
+            border-color: rgba(255, 255, 255, 0.35);
+            box-shadow: 0 0 14px rgba(157, 78, 221, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+        }
+
+        .toggle-track::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 2px;
+            top: 2px;
+            background: radial-gradient(circle at 35% 35%, #ffffff, #e2e8f0);
+            border-radius: 50%;
+            transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .toggle input:checked+.toggle-track::before {
+            transform: translateX(20px);
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        }
+
+        .noise-box {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 9px 13px;
+            font-size: .8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .noise-lbl {
+            color: var(--tx-secondary);
+        }
+
+        /* ── TOAST ── */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            backdrop-filter: blur(28px) saturate(200%);
+            -webkit-backdrop-filter: blur(28px) saturate(200%);
+            background: rgba(18, 18, 30, 0.85);
+            color: #fff;
+            text-align: center;
+            border-radius: 14px;
+            padding: 12px 22px;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 20px rgba(168, 85, 247, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            font-size: .84rem;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity .25s ease, bottom .25s ease;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 36px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-deep);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.16);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ── DYNAMIC AMBIENT RADIAL GLOW CANVAS ── -->
+    <div class="ambient-canvas">
+        <div class="ambient-orb orb-orange"></div>
+        <div class="ambient-orb orb-purple"></div>
+        <div class="ambient-orb orb-blue"></div>
+        <div class="ambient-orb orb-green"></div>
+    </div>
+
+    <div class="wrap">
+
+        <!-- Banner -->
+        <div class="banner">
+            <span class="banner-icon">🧪</span>
+            <span><strong>MODE SIMULASI</strong> — Kontrol sensor di panel bawah. Desain antarmuka Liquid Glassmorphism
+                & Model Paralon PVC.</span>
+        </div>
+
+        <!-- Header -->
+        <header class="glass">
+            <div class="brand">
+                <div class="logo">💡</div>
+                <div>
+                    <h1>Lampu Hias Pintar</h1>
+                    <div class="brand-sub">ESP32 DOIT DevKit V1 · WS2812B 15-LED · Pipa Paralon PVC Matte</div>
+                </div>
+            </div>
+            <div class="badges">
+                <span class="badge live"><span class="dot"></span>Simulasi Live</span>
+                <span class="badge" id="rssiB">📶 — dBm</span>
+                <span class="badge" id="ipB">🌐 192.168.4.1</span>
+                <span class="badge" id="fpsB">⚡ 60 FPS</span>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="grid">
+
+            <!-- LEFT: PVC Cylinder Visualizer + System Status -->
+            <div class="left-col">
+                <div class="glass card" style="display:flex;flex-direction:column;align-items:center">
+                    <h2>🔦 Model Lampu Paralon (PVC)</h2>
+
+                    <!-- Realistic PVC Pipe Stage -->
+                    <div class="pvc-visualizer-container">
+                        <div class="pvc-stage">
+                            <svg id="pvcSvg" viewBox="0 0 240 560" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <!-- Bloom Glow Filter for Perforations -->
+                                    <filter id="bloomFilter" x="-70%" y="-70%" width="240%" height="240%">
+                                        <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur1" />
+                                        <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur2" />
+                                        <feMerge>
+                                            <feMergeNode in="blur2" />
+                                            <feMergeNode in="blur1" />
+                                            <feMergeNode in="SourceGraphic" />
+                                        </feMerge>
+                                    </filter>
+
+                                    <filter id="wideFloorFilter" x="-50%" y="-50%" width="200%" height="200%">
+                                        <feGaussianBlur stdDeviation="10" />
+                                    </filter>
+
+                                    <!-- Dark Charcoal Matte PVC Cylinder Surface Gradient -->
+                                    <linearGradient id="pvcBodyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#14151c" />
+                                        <stop offset="14%" stop-color="#242634" />
+                                        <stop offset="30%" stop-color="#2d3042" />
+                                        <stop offset="55%" stop-color="#1a1c26" />
+                                        <stop offset="85%" stop-color="#111218" />
+                                        <stop offset="100%" stop-color="#0b0c10" />
+                                    </linearGradient>
+
+                                    <!-- Left Outer Rim Lighting (Warm Red-Orange Room Bias) -->
+                                    <linearGradient id="pvcLeftRimGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="rgba(255, 85, 25, 0.52)" />
+                                        <stop offset="40%" stop-color="rgba(255, 70, 20, 0.15)" />
+                                        <stop offset="100%" stop-color="rgba(255, 70, 20, 0)" />
+                                    </linearGradient>
+
+                                    <!-- Right Bottom Dim Green Bias Lighting -->
+                                    <linearGradient id="pvcRightGreenBias" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="rgba(34, 197, 94, 0)" />
+                                        <stop offset="50%" stop-color="rgba(34, 197, 94, 0.06)" />
+                                        <stop offset="100%" stop-color="rgba(34, 197, 94, 0.28)" />
+                                    </linearGradient>
+
+                                    <!-- Ground Contact Shadow -->
+                                    <radialGradient id="floorShadow" cx="50%" cy="50%" r="50%">
+                                        <stop offset="0%" stop-color="rgba(0, 0, 0, 0.88)" />
+                                        <stop offset="60%" stop-color="rgba(0, 0, 0, 0.45)" />
+                                        <stop offset="100%" stop-color="transparent" />
+                                    </radialGradient>
+                                </defs>
+
+                                <!-- Table Ground Shadow -->
+                                <ellipse cx="120" cy="510" rx="82" ry="16" fill="url(#floorShadow)" />
+
+                                <!-- Floor Ambient Glow from LEDs -->
+                                <ellipse id="floorGlow" cx="120" cy="512" rx="65" ry="13"
+                                    fill="rgba(157, 78, 221, 0.25)" filter="url(#wideFloorFilter)" />
+
+                                <!-- PVC Cylinder Main Tube Body -->
+                                <path d="M 65,50 L 65,492 A 55,14 0 0,0 175,492 L 175,50 Z" fill="url(#pvcBodyGrad)" />
+
+                                <!-- Ambient Left Rim Lighting (Reddish/Orange) -->
+                                <path d="M 65,50 L 65,492 A 55,14 0 0,0 105,492 L 105,50 Z"
+                                    fill="url(#pvcLeftRimGlow)" />
+
+                                <!-- Ambient Right-Bottom Green Bias -->
+                                <path d="M 125,310 L 175,310 L 175,492 A 55,14 0 0,1 125,492 Z"
+                                    fill="url(#pvcRightGreenBias)" />
+
+                                <!-- Bottom PVC Base Edge Shadow/Line -->
+                                <path d="M 65,492 A 55,14 0 0,0 175,492" fill="none" stroke="#2a2c3a"
+                                    stroke-width="1.6" />
+
+                                <!-- PVC Top Cap / Rim -->
+                                <ellipse cx="120" cy="50" rx="55" ry="14" fill="#20222d" stroke="#36384a"
+                                    stroke-width="1.2" />
+                                <!-- PVC Inner Wall Thickness Rim -->
+                                <ellipse cx="120" cy="50" rx="47" ry="11.5" fill="#0d0e13" stroke="#161720"
+                                    stroke-width="0.8" />
+                                <!-- Top Cavity Upward Light Bleed -->
+                                <ellipse id="topCavityGlow" cx="120" cy="50.5" rx="40" ry="9"
+                                    fill="rgba(157, 78, 221, 0.3)" />
+
+                                <!-- S-Curve Spiral Dotted Wave Blooms -->
+                                <g id="bloomGroup"></g>
+
+                                <!-- S-Curve Spiral Dotted Wave Holes (Drilled Perforations) -->
+                                <g id="holesGroup"></g>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="pvc-pipe-labels">
+                        <span>▲ LED 14 (Atas)</span>
+                        <span>LED 0 (Bawah) ▼</span>
+                    </div>
+                    <p class="pvc-subtext">
+                        Pola perforasi gelombang 'S' (fraktal tulang belakang)<br>
+                        Silinder PVC Matte Charcoal · 15 Titik Kontrol WS2812B
+                    </p>
+                </div>
+
+                <!-- Status Sistem Card -->
+                <div class="glass card">
+                    <h2>🎯 Status Sistem</h2>
+                    <div class="stat-row">
+                        <span class="stat-label">Mode Operasi</span>
+                        <span class="chip chip-p" id="stMode">Manual</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Warna Terpilih</span>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div id="stColDot"
+                                style="width:16px;height:16px;border-radius:6px;background:#fff;border:1px solid rgba(255,255,255,0.3);box-shadow:0 0 10px #fff">
+                            </div>
+                            <span style="font-weight:700;font-size:.85rem;letter-spacing:0.04em"
+                                id="stColHex">#FFFFFF</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Kecerahan Master</span>
+                        <span style="font-weight:700;font-size:.88rem" id="stBright">200 / 255</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Efek Animasi</span>
+                        <span class="chip chip-p" id="stEfek">Pelangi</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">PIR Auto-OFF</span>
+                        <span style="font-weight:700;font-size:.88rem" id="stPTO">30s</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Pomodoro Timer</span>
+                        <span class="chip chip-g" id="stPomo">Idle</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Controls and Telemetry -->
+            <div class="right-col">
+
+                <!-- Mode Tabs -->
+                <div class="tabs">
+                    <button class="tab on" onclick="switchMode(0)">🎨<span>Manual</span></button>
+                    <button class="tab" onclick="switchMode(1)">✨<span>Efek</span></button>
+                    <button class="tab" onclick="switchMode(2)">🌡️<span>Suhu</span></button>
+                    <button class="tab" onclick="switchMode(3)">🎵<span>Musik</span></button>
+                    <button class="tab" onclick="switchMode(4)">🤖<span>Otomatis</span></button>
+                </div>
+
+                <!-- Control Panels Container Card -->
+                <div class="glass card">
+
+                    <!-- PANEL 0: Manual -->
+                    <div class="panel on" id="p0">
+                        <h2>🎨 Kontrol Warna & Kecerahan</h2>
+                        <div class="fg">
+                            <label>Pilih Warna Palet (Color Picker)</label>
+                            <input type="color" id="cpick" value="#ffffff" oninput="onHexChange()">
+                            <div class="cprev" id="cprev">⬛ #FFFFFF</div>
+                        </div>
+                        <div class="rgb-row">
+                            <div class="rgb-item">
+                                <span>R: <strong id="rV">255</strong></span>
+                                <input type="range" class="r-slider" id="rS" min="0" max="255" value="255"
+                                    oninput="onRGBChange()">
+                                <div class="si-bar">
+                                    <div class="si-fill" id="rBar" style="background:#ff5252;width:100%"></div>
+                                </div>
+                            </div>
+                            <div class="rgb-item">
+                                <span>G: <strong id="gV">255</strong></span>
+                                <input type="range" class="g-slider" id="gS" min="0" max="255" value="255"
+                                    oninput="onRGBChange()">
+                                <div class="si-bar">
+                                    <div class="si-fill" id="gBar" style="background:#00e676;width:100%"></div>
+                                </div>
+                            </div>
+                            <div class="rgb-item">
+                                <span>B: <strong id="bV">255</strong></span>
+                                <input type="range" class="b-slider" id="bS" min="0" max="255" value="255"
+                                    oninput="onRGBChange()">
+                                <div class="si-bar">
+                                    <div class="si-fill" id="bBar" style="background:#40c4ff;width:100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="fg">
+                            <div class="fr">
+                                <label>Kecerahan Master (0 - 255)</label>
+                                <span class="vb" id="bV2">200</span>
+                            </div>
+                            <input type="range" id="bSlide" min="0" max="255" value="200"
+                                oninput="document.getElementById('bV2').textContent=this.value;S.brightness=+this.value">
+                        </div>
+                        <button class="btn" onclick="applyManual()">✔ Terapkan Warna</button>
+                    </div>
+
+                    <!-- PANEL 1: Efek -->
+                    <div class="panel" id="p1">
+                        <h2>✨ Efek Animasi LED</h2>
+                        <div class="efek-grid">
+                            <div class="echip on" id="e0" onclick="pickEfek(0)">🌈 Pelangi<small>Flowing Rainbow
+                                    HSV</small></div>
+                            <div class="echip" id="e1" onclick="pickEfek(1)">🫁 Napas<small>Breathing + Color
+                                    Cycle</small></div>
+                            <div class="echip" id="e2" onclick="pickEfek(2)">🫧 Gelembung<small>Rising Bubbles</small>
+                            </div>
+                            <div class="echip" id="e3" onclick="pickEfek(3)">⭐ Twinkle<small>Kerlap-Kerlip
+                                    Bintang</small></div>
+                            <div class="echip" id="e4" onclick="pickEfek(4)">🔥 Api<small>Fire Simulation</small></div>
+                            <div class="echip" id="e5" onclick="pickEfek(5)">☄️ Meteor<small>Meteor Rain</small></div>
+                            <div class="echip" id="e6" onclick="pickEfek(6)">🌊 Ombak<small>Color Wave</small></div>
+                            <div class="echip" id="e7" onclick="pickEfek(7)">🎆 Kembang<small>Sparkle Burst</small>
+                            </div>
+                        </div>
+                        <div class="fg">
+                            <div class="fr">
+                                <label>Kecepatan Animasi (1 - 10)</label>
+                                <span class="vb" id="spV">5</span>
+                            </div>
+                            <input type="range" id="spSlide" min="1" max="10" value="5"
+                                oninput="document.getElementById('spV').textContent=this.value;S.efekSpeed=+this.value">
+                        </div>
+                        <div class="fg">
+                            <div class="fr">
+                                <label>Saturasi Warna (%)</label>
+                                <span class="vb" id="satV">100</span>
+                            </div>
+                            <input type="range" id="satSlide" min="20" max="100" value="100"
+                                oninput="document.getElementById('satV').textContent=this.value;S.saturation=+this.value">
+                        </div>
+                    </div>
+
+                    <!-- PANEL 2: Suhu -->
+                    <div class="panel" id="p2">
+                        <h2>🌡️ Termometer Ambient (DHT11)</h2>
+                        <div
+                            style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px">
+                            <div class="fr">
+                                <span style="color:var(--tx-secondary);font-size:.85rem">Suhu Terbaca Ruangan</span>
+                                <span style="font-weight:700;font-size:1.35rem;letter-spacing:-0.02em"
+                                    id="suhuDisp">27.5 °C</span>
+                            </div>
+                            <div class="temp-bar-wrap">
+                                <div class="temp-bar-fill" id="tempBar"></div>
+                            </div>
+                            <div class="temp-markers">
+                                <span>15°C 🔵 Dingin</span>
+                                <span>27°C 🟡 Nyaman</span>
+                                <span>🔴 40°C Panas</span>
+                            </div>
+                            <div class="fr">
+                                <span style="color:var(--tx-secondary);font-size:.85rem">Titik Lampu Menyala</span>
+                                <span style="font-weight:700" id="suhuLed">8 / 15</span>
+                            </div>
+                        </div>
+                        <div
+                            style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:.8rem;text-align:center">
+                            <div
+                                style="background:rgba(30,58,138,0.25);border:1px solid rgba(59,130,246,0.35);border-radius:12px;padding:11px">
+                                <div style="font-size:1.4rem">🔵</div>
+                                <div style="color:var(--info);font-weight:700;margin-top:2px">≤ 20°C</div>
+                                <div style="color:var(--tx-muted);font-size:.72rem">Dingin (Cyan/Biru)</div>
+                            </div>
+                            <div
+                                style="background:rgba(180,83,9,0.2);border:1px solid rgba(245,158,11,0.35);border-radius:12px;padding:11px">
+                                <div style="font-size:1.4rem">🟡</div>
+                                <div style="color:var(--warn);font-weight:700;margin-top:2px">~27°C</div>
+                                <div style="color:var(--tx-muted);font-size:.72rem">Nyaman (Warm)</div>
+                            </div>
+                            <div
+                                style="background:rgba(185,28,28,0.22);border:1px solid rgba(239,68,68,0.35);border-radius:12px;padding:11px">
+                                <div style="font-size:1.4rem">🔴</div>
+                                <div style="color:var(--err);font-weight:700;margin-top:2px">≥ 38°C</div>
+                                <div style="color:var(--tx-muted);font-size:.72rem">Panas (Merah)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PANEL 3: Musik -->
+                    <div class="panel" id="p3">
+                        <h2>🎵 Sound Reactive VU Meter</h2>
+                        <div class="vu-wrap">
+                            <div class="vu-bars" id="vuBars"></div>
+                            <div class="vu-axis">
+                                <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+                            </div>
+                        </div>
+                        <div class="fr" style="font-size:.84rem">
+                            <span style="color:var(--tx-secondary)">Amplitudo RMS</span>
+                            <span style="font-weight:700;color:var(--ok)" id="vuLvl">-- %</span>
+                        </div>
+                        <div class="fr" style="font-size:.84rem">
+                            <span style="color:var(--tx-secondary)">Peak Hold</span>
+                            <span style="font-weight:700;color:var(--err)" id="vuPeak">-- %</span>
+                        </div>
+                        <div class="noise-box">
+                            <span class="noise-lbl">Noise Floor (Kalibrasi Boot)</span>
+                            <span id="noiseVal" style="font-weight:700;color:#e2e8f0">1847 ADC</span>
+                        </div>
+                        <div class="fg">
+                            <div class="fr"><label>Mode Reaksi VU</label></div>
+                            <select id="vuMode" onchange="S.vuMode=this.value">
+                                <option value="bar">📊 Bar Vertikal</option>
+                                <option value="chase">💫 Color Chase</option>
+                                <option value="peak">🏔️ Peak Mountain</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- PANEL 4: Otomatis -->
+                    <div class="panel" id="p4">
+                        <h2>🤖 Mode Otomatis Cerdas</h2>
+                        <div class="auto-info">
+                            <div class="ai-row">
+                                <span style="color:var(--tx-secondary)">Cahaya Ruangan (LDR)</span>
+                                <span class="chip" id="ldrC">☀️ Terang</span>
+                            </div>
+                            <div class="ai-row">
+                                <span style="color:var(--tx-secondary)">Sensor Gerak (PIR)</span>
+                                <span class="chip" id="pirC">👁️ Tenang</span>
+                            </div>
+                            <div class="ai-row">
+                                <span style="color:var(--tx-secondary)">Status Lampu Otomatis</span>
+                                <span class="chip" id="lampC">💤 Standby</span>
+                            </div>
+                            <div class="ai-row">
+                                <span style="color:var(--tx-secondary)">Smooth Fade Level</span>
+                                <span style="font-weight:700;font-size:.88rem" id="fadeLvl">0%</span>
+                            </div>
+                        </div>
+                        <div class="fg">
+                            <div class="fr">
+                                <label>PIR Auto-OFF Timeout</label>
+                                <span class="vb" id="ptV">30s</span>
+                            </div>
+                            <input type="range" id="ptSlide" min="5" max="120" step="5" value="30"
+                                oninput="document.getElementById('ptV').textContent=this.value+'s';S.pirTimeout=+this.value;document.getElementById('stPTO').textContent=this.value+'s'">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preset Cepat Card -->
+                <div class="glass card">
+                    <h2>⚡ Preset Cepat</h2>
+                    <div class="pset-grid">
+                        <button class="pset pb" id="pB" onclick="preset('belajar')">📖
+                            <strong>Belajar</strong><br><small style="color:var(--tx-secondary)">Putih ·
+                                200</small></button>
+                        <button class="pset ps" id="pS" onclick="preset('santai')">☕ <strong>Santai</strong><br><small
+                                style="color:var(--tx-secondary)">Warm · 150</small></button>
+                        <button class="pset pt" id="pT" onclick="preset('tidur')">🌙 <strong>Tidur</strong><br><small
+                                style="color:var(--tx-secondary)">Merah · 50</small></button>
+                    </div>
+                </div>
+
+                <!-- Pomodoro Card -->
+                <div class="glass card">
+                    <h2>⏱️ Pomodoro Produktivitas</h2>
+                    <div class="pomo-box">
+                        <div class="pomo-time" id="pomoClock">25:00</div>
+                        <div class="pomo-lbl" id="pomoLbl">IDLE / SIAP</div>
+                        <div class="pomo-prog-wrap">
+                            <div class="pomo-prog" id="pomoBar"></div>
+                        </div>
+                        <div class="pomo-sessions" id="pomoSess"></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+                        <div class="fg">
+                            <label>Sesi Fokus (menit)</label>
+                            <input type="number" id="pFokus" min="1" max="90" value="25">
+                        </div>
+                        <div class="fg">
+                            <label>Istirahat (menit)</label>
+                            <input type="number" id="pIstirahat" min="1" max="30" value="5">
+                        </div>
+                    </div>
+                    <div class="pomo-btns">
+                        <button class="btn btn-ok btn-sm" onclick="pomoStart()">▶ Mulai</button>
+                        <button class="btn btn-sec btn-sm" onclick="pomoPause()">⏸ Pause</button>
+                        <button class="btn btn-err btn-sm" onclick="pomoReset()">🔄 Reset</button>
+                    </div>
+                </div>
+
+                <!-- Sensor Telemetry Card -->
+                <div class="glass card">
+                    <h2>📊 Telemetri Sensor <span
+                            style="font-size:.72rem;color:var(--tx-muted);font-weight:400;margin-left:6px">⟳ live
+                            update</span></h2>
+                    <div class="sg">
+                        <div class="si" id="cSuhu">
+                            <div class="si-lbl">🌡️ Suhu</div>
+                            <div class="si-val" id="vSuhu">--°C</div>
+                            <div class="si-bar">
+                                <div class="si-fill" id="bSuhu"
+                                    style="background:linear-gradient(90deg,#40c4ff,#ff7043)"></div>
+                            </div>
+                        </div>
+                        <div class="si" id="cHum">
+                            <div class="si-lbl">💧 Kelembapan</div>
+                            <div class="si-val" id="vHum">--%</div>
+                            <div class="si-bar">
+                                <div class="si-fill" id="bHum" style="background:var(--info)"></div>
+                            </div>
+                        </div>
+                        <div class="si" id="cLdr">
+                            <div class="si-lbl">☀️ Cahaya LDR</div>
+                            <div class="si-val" id="vLdr">----</div>
+                            <div class="si-bar">
+                                <div class="si-fill" id="bLdr" style="background:var(--warn)"></div>
+                            </div>
+                        </div>
+                        <div class="si" id="cMic">
+                            <div class="si-lbl">🎵 Suara Mic</div>
+                            <div class="si-val" id="vMic">--%</div>
+                            <div class="si-bar">
+                                <div class="si-fill" id="bMic" style="background:var(--ok)"></div>
+                            </div>
+                        </div>
+                        <div class="si" id="cPir">
+                            <div class="si-lbl">👁️ Gerak PIR</div>
+                            <div class="si-val" id="vPir">Tenang</div>
+                        </div>
+                        <div class="si" id="cRssi">
+                            <div class="si-lbl">📶 WiFi RSSI</div>
+                            <div class="si-val" id="vRssi">-- dBm</div>
+                            <div class="si-bar">
+                                <div class="si-fill" id="bRssi" style="background:var(--acc-purple)"></div>
+                            </div>
+                        </div>
+                        <div class="si" id="cMode">
+                            <div class="si-lbl">🎯 Mode</div>
+                            <div class="si-val" id="vMode" style="font-size:1.05rem;color:#d8b4fe">Manual</div>
+                        </div>
+                        <div class="si" id="cPomo">
+                            <div class="si-lbl">⏱️ Pomodoro</div>
+                            <div class="si-val" id="vPomo" style="font-size:1.05rem">Idle</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- right-col -->
+        </div><!-- grid -->
+
+        <!-- ════════════════════════════════════════════
+             SIMULATION CONTROL PANEL (BOTTOM)
+        ═══════════════════════════════════════════════ -->
+        <div class="glass card sim-panel">
+            <h2>🎛️ Panel Kontrol Simulasi Sensor
+                <span style="font-size:.75rem;color:var(--tx-muted);font-weight:400;margin-left:8px">
+                    Geser slider di bawah untuk mengubah nilai input simulasi secara realtime
+                </span>
+            </h2>
+            <div class="sim-grid">
+
+                <!-- Suhu -->
+                <div class="sim-ctrl">
+                    <div class="sim-hd">
+                        <span class="sim-name">🌡️ Suhu Ruang (°C)</span>
+                        <span class="sim-vb" id="simSuhuV">27.5</span>
+                    </div>
+                    <input type="range" id="simSuhu" min="15" max="40" step="0.1" value="27.5"
+                        oninput="SIM.suhu=+this.value;document.getElementById('simSuhuV').textContent=parseFloat(this.value).toFixed(1)">
+                    <div class="sim-ind">
+                        <div class="sim-ind-fill" id="simSuhuB"
+                            style="background:linear-gradient(90deg,#40c4ff,#ff7043)"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--tx-muted)">
+                        <span>15°C</span><span>40°C</span>
+                    </div>
+                </div>
+
+                <!-- Kelembapan -->
+                <div class="sim-ctrl">
+                    <div class="sim-hd">
+                        <span class="sim-name">💧 Kelembapan Udara (%)</span>
+                        <span class="sim-vb" id="simHumV">62</span>
+                    </div>
+                    <input type="range" id="simHum" min="20" max="95" value="62"
+                        oninput="SIM.kelembapan=+this.value;document.getElementById('simHumV').textContent=this.value">
+                    <div class="sim-ind">
+                        <div class="sim-ind-fill" id="simHumB" style="background:#40c4ff"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--tx-muted)">
+                        <span>20%</span><span>95%</span>
+                    </div>
+                </div>
+
+                <!-- LDR -->
+                <div class="sim-ctrl">
+                    <div class="sim-hd">
+                        <span class="sim-name">☀️ Cahaya LDR (ADC)</span>
+                        <span class="sim-vb" id="simLdrV">1850</span>
+                    </div>
+                    <input type="range" id="simLdr" min="0" max="4095" value="1850"
+                        oninput="SIM.cahaya=+this.value;document.getElementById('simLdrV').textContent=this.value">
+                    <div class="sim-ind">
+                        <div class="sim-ind-fill" id="simLdrB" style="background:#ffee58"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--tx-muted)">
+                        <span>Terang (0)</span><span>Gelap (4095)</span>
+                    </div>
+                </div>
+
+                <!-- Mikrofon -->
+                <div class="sim-ctrl">
+                    <div class="sim-hd">
+                        <span class="sim-name">🎵 Amplitudo Suara (%)</span>
+                        <span class="sim-vb" id="simMicV">20</span>
+                    </div>
+                    <input type="range" id="simMic" min="0" max="100" value="20"
+                        oninput="SIM.suara=+this.value;document.getElementById('simMicV').textContent=this.value">
+                    <div class="sim-ind">
+                        <div class="sim-ind-fill" id="simMicB" style="background:#69f0ae"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--tx-muted)">
+                        <span>Senyap</span><span>Keras</span>
+                    </div>
+                </div>
+
+                <!-- RSSI -->
+                <div class="sim-ctrl">
+                    <div class="sim-hd">
+                        <span class="sim-name">📶 WiFi RSSI (dBm)</span>
+                        <span class="sim-vb" id="simRssiV">-58</span>
+                    </div>
+                    <input type="range" id="simRssi" min="-90" max="-30" value="-58"
+                        oninput="SIM.rssi=+this.value;document.getElementById('simRssiV').textContent=this.value">
+                    <div class="sim-ind">
+                        <div class="sim-ind-fill" id="simRssiB" style="background:#b388ff"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--tx-muted)">
+                        <span>Lemah (-90)</span><span>Kuat (-30)</span>
+                    </div>
+                </div>
+
+                <!-- Interactive Switch Toggles -->
+                <div class="sim-ctrl" style="justify-content:center;gap:12px">
+                    <div class="toggle-row">
+                        <label class="toggle">
+                            <input type="checkbox" id="pirToggle"
+                                onchange="SIM.pir=this.checked;if(!this.checked)SIM.pirManual=false">
+                            <div class="toggle-track"></div>
+                        </label>
+                        <span style="font-size:.82rem;font-weight:500">👁️ PIR — Paksa Deteksi Gerak</span>
+                        <span class="chip" id="pirChipSim" style="margin-left:auto">OFF</span>
+                    </div>
+                    <div class="toggle-row">
+                        <label class="toggle">
+                            <input type="checkbox" id="autoNoise" checked onchange="SIM.autoNoise=this.checked">
+                            <div class="toggle-track"></div>
+                        </label>
+                        <span style="font-size:.82rem;font-weight:500">🎲 Auto-randomize Fluktuasi Sensor</span>
+                    </div>
+                    <div class="toggle-row">
+                        <label class="toggle">
+                            <input type="checkbox" id="micBeat" onchange="SIM.micBeat=this.checked">
+                            <div class="toggle-track"></div>
+                        </label>
+                        <span style="font-size:.82rem;font-weight:500">🥁 Simulasi Ketukan Musik (Beat)</span>
+                    </div>
+                    <div class="noise-box">
+                        <span class="noise-lbl">Kalibrasi Noise Floor</span>
+                        <span id="noiseFloor" style="font-weight:700;color:var(--warn)">1847 ADC</span>
+                    </div>
+                </div>
+
+            </div><!-- sim-grid -->
+        </div><!-- sim-panel -->
+
+    </div><!-- wrap -->
+
+    <div id="toast"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ JS ═══ -->
+    <script>
+        /* ══════════════════════════════════════
+           STATE
+        ══════════════════════════════════════ */
+        const NL = 15;
+        const MNAMES = ['Manual', 'Efek', 'Suhu', 'Musik', 'Otomatis'];
+        const ENAMES = ['Pelangi', 'Napas', 'Gelembung', 'Twinkle', 'Api', 'Meteor', 'Ombak', 'Kembang'];
+
+        let S = {
+            mode: 0, efek: 0, efekSpeed: 5, saturation: 100,
+            r: 255, g: 255, b: 255, brightness: 200,
+            pirTimeout: 30, vuMode: 'bar',
+            // pomodoro
+            pomoState: 0, pomoFokus: 25, pomoIstirahat: 5, pomoSisa: 25 * 60,
+            pomoSessions: 0, pomoRunning: false,
+            // internal anim
+            _hue: 0, _breath: 0, _t: 0, _autoFade: 0,
+            _bubbles: [], _twinkle: [], _fire: [],
+            _meteor: { pos: -1, tail: [] }, _peak: 0, _peakDecay: 0,
+            _beatTimer: 0, _beatActive: false,
+        };
+
+        // Sensor State
+        let SIM = {
+            suhu: 27.5, kelembapan: 62, cahaya: 1850, suara: 20,
+            pir: false, rssi: -58,
+            autoNoise: true, micBeat: false, pirManual: false,
+        };
+
+        let ledColors = Array(NL).fill(null).map(() => [0, 0, 0]);
+        let frameCount = 0, fpsTime = Date.now(), fps = 60;
+        let vertebrae = []; // Perforated spiral S-wave model nodes
+
+        /* ══════════════════════════════════════
+           PVC S-CURVE DOTTED WAVE GENERATOR
+        ══════════════════════════════════════ */
+        function initPvcModel() {
+            const holesGroup = document.getElementById('holesGroup');
+            const bloomGroup = document.getElementById('bloomGroup');
+            if (!holesGroup || !bloomGroup) return;
+
+            holesGroup.innerHTML = '';
+            bloomGroup.innerHTML = '';
+            vertebrae = [];
+
+            // Height span: bottom Y=468 (LED 0) to top Y=72 (LED 14)
+            const startY = 468;
+            const endY = 72;
+            const centerX = 120; // cylinder center line
+
+            for (let i = 0; i < NL; i++) {
+                const u = i / (NL - 1); // 0 at bottom, 1 at top
+                const y = startY - u * (startY - endY);
+
+                // Graceful S-curve sinusoidal wave across cylinder face:
+                // Bottom curves to left, middle arcs right, upper arcs left, top curves towards right
+                const angle = 2.05 * Math.PI * u - 0.28;
+                const x = centerX - 24 * Math.cos(angle) * (0.86 + 0.3 * Math.sin(Math.PI * u));
+
+                vertebrae.push({ i, u, x, y });
+            }
+
+            // Compute tangents & normals for spine vertebrae ribs
+            for (let i = 0; i < NL; i++) {
+                let dx, dy;
+                if (i === 0) {
+                    dx = vertebrae[1].x - vertebrae[0].x;
+                    dy = vertebrae[1].y - vertebrae[0].y;
+                } else if (i === NL - 1) {
+                    dx = vertebrae[NL - 1].x - vertebrae[NL - 2].x;
+                    dy = vertebrae[NL - 1].y - vertebrae[NL - 2].y;
+                } else {
+                    dx = vertebrae[i + 1].x - vertebrae[i - 1].x;
+                    dy = vertebrae[i + 1].y - vertebrae[i - 1].y;
+                }
+                const len = Math.hypot(dx, dy) || 1;
+                let nx = -dy / len;
+                let ny = dx / len;
+                if (nx < 0) { nx = -nx; ny = -ny; } // ensure nx points rightward
+
+                vertebrae[i].nx = nx;
+                vertebrae[i].ny = ny;
+
+                // Central circle radius: large in the middle (~9.8px), tapering at both ends (~3.2px)
+                const rMain = 3.2 + 6.6 * Math.pow(Math.sin(Math.PI * vertebrae[i].u), 1.15);
+                vertebrae[i].rMain = rMain;
+
+                // 1. Bloom halo behind the node
+                const bloom = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                bloom.setAttribute('cx', vertebrae[i].x.toFixed(2));
+                bloom.setAttribute('cy', vertebrae[i].y.toFixed(2));
+                bloom.setAttribute('r', (rMain * 2.8).toFixed(2));
+                bloom.setAttribute('fill', 'rgb(168, 85, 247)');
+                bloom.setAttribute('opacity', '0');
+                bloom.setAttribute('filter', 'url(#bloomFilter)');
+                bloomGroup.appendChild(bloom);
+
+                // 2. Fractal Lateral Sub-dots (3 to 4 dots per side, getting progressively smaller)
+                const numDots = (i >= 3 && i <= 11) ? 4 : 3;
+                const subDots = [];
+
+                [-1, 1].forEach(side => {
+                    for (let k = 1; k <= numDots; k++) {
+                        const dist = rMain + 2.7 + (k - 1) * (rMain * 0.44 + 2.2);
+                        const rDot = Math.max(1.1, rMain * (0.52 - 0.095 * k));
+                        const dotX = vertebrae[i].x + side * dist * nx;
+                        const dotY = vertebrae[i].y + side * dist * ny;
+
+                        const dotEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        dotEl.setAttribute('cx', dotX.toFixed(2));
+                        dotEl.setAttribute('cy', dotY.toFixed(2));
+                        dotEl.setAttribute('r', rDot.toFixed(2));
+                        dotEl.setAttribute('fill', '#111218');
+                        holesGroup.appendChild(dotEl);
+                        subDots.push({ el: dotEl, k, side });
+                    }
+                });
+
+                // 3. Main center drilled hole
+                const mainEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                mainEl.setAttribute('cx', vertebrae[i].x.toFixed(2));
+                mainEl.setAttribute('cy', vertebrae[i].y.toFixed(2));
+                mainEl.setAttribute('r', rMain.toFixed(2));
+                mainEl.setAttribute('fill', '#111218');
+                mainEl.setAttribute('stroke', '#1e202c');
+                mainEl.setAttribute('stroke-width', '0.9');
+                holesGroup.appendChild(mainEl);
+
+                // 4. Intense white-hot core center
+                const coreEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                coreEl.setAttribute('cx', vertebrae[i].x.toFixed(2));
+                coreEl.setAttribute('cy', vertebrae[i].y.toFixed(2));
+                coreEl.setAttribute('r', (rMain * 0.46).toFixed(2));
+                coreEl.setAttribute('fill', '#ffffff');
+                coreEl.setAttribute('opacity', '0');
+                holesGroup.appendChild(coreEl);
+
+                vertebrae[i].bloom = bloom;
+                vertebrae[i].mainEl = mainEl;
+                vertebrae[i].coreEl = coreEl;
+                vertebrae[i].subDots = subDots;
+            }
+        }
+
+        /* ══════════════════════════════════════
+           INIT
+        ══════════════════════════════════════ */
+        (() => {
+            initPvcModel();
+
+            // VU bars
+            const vu = document.getElementById('vuBars');
+            for (let i = 0; i < 20; i++) {
+                const b = document.createElement('div');
+                b.className = 'vu-bar';
+                b.id = 'VB' + i;
+                vu.appendChild(b);
+            }
+
+            // Pomo dots
+            const ps = document.getElementById('pomoSess');
+            for (let i = 0; i < 4; i++) {
+                const d = document.createElement('div');
+                d.className = 'ps-dot';
+                d.id = 'PD' + i;
+                ps.appendChild(d);
+            }
+
+            // Init animation effect states
+            S._bubbles = Array.from({ length: 5 }, (_, i) => ({
+                pos: Math.random() * NL,
+                spd: .05 + Math.random() * .15,
+                h: (i * 72) % 360,
+                active: true
+            }));
+            S._twinkle = Array.from({ length: NL }, () => ({
+                v: Math.random(),
+                dv: -.02 + Math.random() * .01,
+                h: Math.random() * 360
+            }));
+            S._fire = Array.from({ length: NL }, () => 0);
+            S._meteor = { pos: NL + 2, tail: Array(NL).fill(0), spd: .3, h: 200 };
+
+            // Calibrated Noise floor
+            const nf = 1820 + Math.floor(Math.random() * 60);
+            document.getElementById('noiseFloor').textContent = nf + ' ADC';
+            document.getElementById('noiseVal').textContent = nf + ' ADC';
+        })();
+
+        /* ══════════════════════════════════════
+           HELPERS
+        ══════════════════════════════════════ */
+        function hsv(h, s, v) {
+            s /= 100; v /= 100;
+            const f = n => {
+                const k = (n + h / 60) % 6;
+                return v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+            };
+            return [Math.round(f(5) * 255), Math.round(f(3) * 255), Math.round(f(1) * 255)];
+        }
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+        function map(v, a, b, c, d) { return c + (d - c) * ((v - a) / (b - a)); }
+        function set$(id, v) { const e = document.getElementById(id); if (e) e.textContent = v; }
+        function setW(id, pct) { const e = document.getElementById(id); if (e) e.style.width = clamp(pct, 0, 100) + '%'; }
+        function toast(m) {
+            const t = document.getElementById('toast');
+            t.textContent = m;
+            t.className = 'show';
+            setTimeout(() => t.className = t.className.replace('show', ''), 2100);
+        }
+
+        /* ══════════════════════════════════════
+           LED RENDER PER MODE
+        ══════════════════════════════════════ */
+        function computeLEDs() {
+            const br = S.brightness / 255;
+            const sat = S.saturation;
+            const spd = S.efekSpeed;
+            const cols = ledColors;
+            const t = S._t;
+
+            if (S.mode === 0) { // Manual
+                const [r, g, b] = [S.r * br, S.g * br, S.b * br].map(Math.round);
+                for (let i = 0; i < NL; i++) cols[i] = [r, g, b];
+
+            } else if (S.mode === 1) { // Efek
+                switch (S.efek) {
+                    case 0: { // Pelangi (Smooth Flowing Rainbow HSV)
+                        S._hue = (S._hue + spd * .5) % 360;
+                        for (let i = 0; i < NL; i++) {
+                            const h = (S._hue + i * (360 / NL)) % 360;
+                            const [r, g, b] = hsv(h, sat, 100);
+                            cols[i] = [Math.round(r * br), Math.round(g * br), Math.round(b * br)];
+                        }
+                        break;
+                    }
+                    case 1: { // Napas (Breathing + Color Shift)
+                        S._breath += .025 * spd;
+                        const bv = (.5 + .5 * Math.sin(S._breath));
+                        S._hue = (S._hue + .15 * spd) % 360;
+                        const [r, g, b] = hsv(S._hue, sat, 100);
+                        const f = bv * br;
+                        for (let i = 0; i < NL; i++) cols[i] = [Math.round(r * f), Math.round(g * f), Math.round(b * f)];
+                        break;
+                    }
+                    case 2: { // Gelembung (Rising Bubbles)
+                        for (let i = 0; i < NL; i++) cols[i] = [0, 0, 0];
+                        S._bubbles.forEach(b => {
+                            b.pos += b.spd * spd * .7;
+                            if (b.pos >= NL) { b.pos = 0; b.h = (b.h + 47) % 360; }
+                            const idx = Math.floor(b.pos), f = b.pos - idx;
+                            const [r, g, bc] = hsv(b.h, sat, 95);
+                            if (idx < NL) {
+                                const bri = br * (1 - f * .5);
+                                cols[idx] = [r * bri, g * bri, bc * bri].map(Math.round);
+                            }
+                            if (idx + 1 < NL && f > .25) {
+                                const bri = br * f * .6;
+                                cols[idx + 1] = [r * bri, g * bri, bc * bri].map(Math.round);
+                            }
+                        });
+                        break;
+                    }
+                    case 3: { // Twinkle (Kerlap-Kerlip Bintang)
+                        S._twinkle.forEach((tw, i) => {
+                            tw.v = clamp(tw.v + tw.dv, 0, 1);
+                            if (tw.v <= 0) { tw.v = 0; tw.dv = .03 + Math.random() * .05; tw.h = Math.random() * 360; }
+                            else if (tw.v >= 1) { tw.dv = -.02 - Math.random() * .04; }
+                            if (Math.random() < .004 * spd && tw.v < .1) { tw.dv = .05 + Math.random() * .08; tw.h = Math.random() * 360; }
+                            const [r, g, b] = hsv(tw.h, sat, 95);
+                            const f = tw.v * br;
+                            cols[i] = [Math.round(r * f), Math.round(g * f), Math.round(b * f)];
+                        });
+                        break;
+                    }
+                    case 4: { // Api (Fire Simulation)
+                        const cool = 55, spark = 80;
+                        for (let i = 0; i < NL; i++) S._fire[i] = clamp(S._fire[i] - Math.random() * cool / NL, 0, 255);
+                        for (let i = NL - 1; i >= 2; i--) S._fire[i] = (S._fire[i - 1] + S._fire[i - 2] + S._fire[i - 2]) / 3;
+                        if (Math.random() < spark / 255) S._fire[0] = 180 + Math.random() * 75;
+                        if (Math.random() < spark / 255) S._fire[1] = 150 + Math.random() * 80;
+                        for (let i = 0; i < NL; i++) {
+                            const heat = S._fire[i];
+                            let r2, g2, b2;
+                            if (heat < 85) { r2 = heat * 3; g2 = 0; b2 = 0; }
+                            else if (heat < 170) { r2 = 255; g2 = (heat - 85) * 3; b2 = 0; }
+                            else { r2 = 255; g2 = 255; b2 = (heat - 170) * 3; }
+                            cols[i] = [Math.round(r2 * br), Math.round(g2 * br), Math.round(b2 * br)];
+                        }
+                        break;
+                    }
+                    case 5: { // Meteor rain
+                        const m = S._meteor;
+                        m.pos += (.08 + spd * .06);
+                        if (m.pos > NL + m.tail.length) { m.pos = -(m.tail.length + 2); m.h = (m.h + 60) % 360; }
+                        for (let i = 0; i < NL; i++) m.tail[i] = clamp(m.tail[i] * .78, 0, 255);
+                        const head = Math.floor(m.pos);
+                        if (head >= 0 && head < NL) {
+                            const [r2, g2, b2] = hsv(m.h, sat, 100);
+                            m.tail[head] = 255;
+                            cols[head] = [Math.round(r2 * br), Math.round(g2 * br), Math.round(b2 * br)];
+                        }
+                        for (let i = 0; i < NL; i++) {
+                            if (i !== head) {
+                                const [r2, g2, b2] = hsv(m.h, sat, 100);
+                                const f = (m.tail[i] / 255) * br;
+                                cols[i] = [Math.round(r2 * f), Math.round(g2 * f), Math.round(b2 * f)];
+                            }
+                        }
+                        break;
+                    }
+                    case 6: { // Ombak / Color Wave
+                        for (let i = 0; i < NL; i++) {
+                            const wave1 = .5 + .5 * Math.sin(t * spd * .15 + i * .5);
+                            const wave2 = .5 + .5 * Math.sin(t * spd * .22 + i * .35 + 1.2);
+                            const h1 = (S._hue + i * 12) % 360;
+                            const h2 = (S._hue + i * 12 + 120) % 360;
+                            const [r1, g1, b1] = hsv(h1, sat, 95);
+                            const [r2, g2, b2] = hsv(h2, sat, 95);
+                            const w = wave1 * wave2;
+                            cols[i] = [
+                                Math.round(lerp(r1, r2, wave2) * w * br),
+                                Math.round(lerp(g1, g2, wave2) * w * br),
+                                Math.round(lerp(b1, b2, wave2) * w * br)
+                            ];
+                        }
+                        S._hue = (S._hue + .3 * spd) % 360;
+                        break;
+                    }
+                    case 7: { // Kembang Api / Sparkle Burst
+                        for (let i = 0; i < NL; i++) cols[i] = [cols[i][0] * .7, cols[i][1] * .7, cols[i][2] * .7].map(Math.round);
+                        if (Math.random() < .15 * spd) {
+                            const idx = Math.floor(Math.random() * NL);
+                            const h = Math.random() * 360;
+                            const [r, g, b] = hsv(h, sat, 100);
+                            cols[idx] = [Math.round(r * br), Math.round(g * br), Math.round(b * br)];
+                            if (idx > 0) cols[idx - 1] = [Math.round(r * br * .5), Math.round(g * br * .5), Math.round(b * br * .5)];
+                            if (idx < NL - 1) cols[idx + 1] = [Math.round(r * br * .5), Math.round(g * br * .5), Math.round(b * br * .5)];
+                        }
+                        break;
+                    }
+                }
+
+            } else if (S.mode === 2) { // Suhu
+                const tmp = SIM.suhu;
+                const lit = Math.max(1, Math.round(map(tmp, 15, 40, 1, NL)));
+                for (let i = 0; i < NL; i++) {
+                    if (i < lit) {
+                        const r = map(tmp, 15, 40, 0, 255), g = Math.max(0, map(Math.abs(tmp - 27), 0, 13, 180, 0)), b = map(tmp, 15, 30, 255, 0);
+                        const brf = (1 + .15 * Math.sin(t * .05 * (i + 1))) * br;
+                        cols[i] = [clamp(Math.round(r * brf), 0, 255), clamp(Math.round(g * brf), 0, 255), clamp(Math.round(b * brf), 0, 255)];
+                    } else cols[i] = [0, 0, 0];
+                }
+
+            } else if (S.mode === 3) { // Musik
+                const lv = SIM.suara / 100;
+                if (lv > S._peak) S._peak = lv;
+                else S._peak = Math.max(0, S._peak - .015);
+                const lit = Math.round(lv * NL);
+                const pLit = Math.min(NL - 1, Math.round(S._peak * NL));
+                for (let i = 0; i < NL; i++) {
+                    if (i < lit) {
+                        const ratio = i / (NL - 1);
+                        const r = Math.round(clamp(map(ratio, .35, 1, 0, 255), 0, 255) * br);
+                        const g = Math.round(clamp(map(ratio, 0, .65, 255, 0), 0, 255) * br);
+                        const b2 = Math.round(clamp(map(ratio, 0, .2, 180, 0), 0, 255) * br);
+                        cols[i] = [r, g, b2];
+                    } else if (i === pLit) {
+                        cols[i] = [Math.round(255 * br), 0, 0];
+                    } else cols[i] = [0, 0, 0];
+                }
+
+            } else if (S.mode === 4) { // Otomatis
+                const dark = SIM.cahaya > 2000;
+                const motion = SIM.pir;
+                if (dark && motion) { S._autoFade = clamp(S._autoFade + .04, 0, 1); }
+                else { S._autoFade = clamp(S._autoFade - .025, 0, 1); }
+                const af = S._autoFade * br * .7;
+                const warmH = 30 + 10 * Math.sin(t * .02);
+                const [r, g, b] = hsv(warmH, 70, 100);
+                for (let i = 0; i < NL; i++) {
+                    const flicker = .9 + .1 * Math.random();
+                    cols[i] = [Math.round(r * af * flicker), Math.round(g * af * flicker), Math.round(b * af * flicker)];
+                }
+                set$('fadeLvl', Math.round(S._autoFade * 100) + '%');
+            }
+
+            // Pomodoro overlay (if running)
+            if (S.pomoState > 0) {
+                const total = S.pomoState === 1 ? S.pomoFokus * 60 : S.pomoIstirahat * 60;
+                const elapsed = total - S.pomoSisa;
+                const pct = clamp(elapsed / total, 0, 1);
+                const lit = Math.round(pct * NL);
+                for (let i = 0; i < NL; i++) {
+                    if (i < lit) {
+                        if (S.pomoState === 1) {
+                            cols[i] = [Math.round(255 * br), Math.round((100 + 80 * (i / NL)) * br), 0];
+                        } else {
+                            const bv = .4 + .6 * ((.5 + .5 * Math.sin(S._breath * .6)));
+                            cols[i] = [0, Math.round(220 * bv * br), Math.round(80 * bv * br)];
+                        }
+                    } else cols[i] = [0, 0, 0];
+                }
+            }
+
+            S._t += .04;
+        }
+
+        /* ══════════════════════════════════════
+           RENDER PARALON PVC S-CURVE MODEL
+        ══════════════════════════════════════ */
+        function renderLamp() {
+            let topAvg = [0, 0, 0], bottomAvg = [0, 0, 0];
+
+            for (let i = 0; i < NL; i++) {
+                const v = vertebrae[i];
+                if (!v) continue;
+                const [r, g, b] = ledColors[i];
+                const lum = r + g + b;
+                const col = `rgb(${r},${g},${b})`;
+
+                if (i >= 11) {
+                    topAvg[0] += r; topAvg[1] += g; topAvg[2] += b;
+                }
+                if (i <= 3) {
+                    bottomAvg[0] += r; bottomAvg[1] += g; bottomAvg[2] += b;
+                }
+
+                if (lum > 14) {
+                    const intensity = Math.min(1, lum / 720);
+
+                    // Drilled Hole: intense glowing emissive color
+                    v.mainEl.style.fill = col;
+                    v.mainEl.style.stroke = `rgba(${r},${g},${b},0.85)`;
+                    v.mainEl.style.filter = `drop-shadow(0 0 6px ${col})`;
+
+                    // White-hot center core
+                    v.coreEl.style.opacity = (0.35 + 0.65 * intensity).toFixed(2);
+
+                    // Soft bloom halo radiating outwards
+                    v.bloom.style.fill = col;
+                    v.bloom.style.opacity = (0.2 + 0.75 * intensity * (S.brightness / 255)).toFixed(2);
+
+                    // Lateral fractal dots glowing along normal ribs
+                    v.subDots.forEach(sd => {
+                        const fade = Math.max(0.38, 1 - sd.k * 0.16);
+                        sd.el.style.fill = col;
+                        sd.el.style.opacity = (intensity * fade).toFixed(2);
+                        sd.el.style.filter = sd.k <= 2 ? `drop-shadow(0 0 4px ${col})` : 'none';
+                    });
+                } else {
+                    // Unlit state: dark drilled perforation inside PVC tube
+                    v.mainEl.style.fill = '#101117';
+                    v.mainEl.style.stroke = '#1b1d26';
+                    v.mainEl.style.filter = 'none';
+                    v.coreEl.style.opacity = '0';
+                    v.bloom.style.opacity = '0';
+
+                    v.subDots.forEach(sd => {
+                        sd.el.style.fill = '#0c0d12';
+                        sd.el.style.opacity = '0.6';
+                        sd.el.style.filter = 'none';
+                    });
+                }
+            }
+
+            // Dynamic floor reflection & top cavity bleed
+            const topEl = document.getElementById('topCavityGlow');
+            if (topEl) {
+                const tr = Math.round(topAvg[0] / 4), tg = Math.round(topAvg[1] / 4), tb = Math.round(topAvg[2] / 4);
+                topEl.style.fill = `rgba(${tr},${tg},${tb},0.35)`;
+            }
+
+            const floorEl = document.getElementById('floorGlow');
+            if (floorEl) {
+                const br = Math.round(bottomAvg[0] / 4), bg = Math.round(bottomAvg[1] / 4), bb = Math.round(bottomAvg[2] / 4);
+                floorEl.style.fill = `rgba(${br},${bg},${bb},0.3)`;
+            }
+        }
+
+        /* ══════════════════════════════════════
+           RENDER SENSORS & UI
+        ══════════════════════════════════════ */
+        function renderSensors() {
+            const { suhu, kelembapan, cahaya, suara, pir, rssi } = SIM;
+            set$('vSuhu', suhu.toFixed(1) + '°C');
+            set$('vHum', Math.round(kelembapan) + '%');
+            set$('vLdr', Math.round(cahaya));
+            set$('vMic', Math.round(suara) + '%');
+            set$('vPir', pir ? '🔥 Aktif' : 'Tenang');
+            set$('vRssi', rssi + ' dBm');
+            set$('vMode', MNAMES[S.mode] || 'Manual');
+            set$('rssiB', '📶 ' + rssi + ' dBm');
+
+            setW('bSuhu', map(suhu, 15, 40, 0, 100));
+            setW('bHum', kelembapan);
+            setW('bLdr', (cahaya / 4095) * 100);
+            setW('bMic', suara);
+            setW('bRssi', map(rssi, -90, -30, 0, 100));
+
+            // Sim panel indicator bars
+            setW('simSuhuB', map(suhu, 15, 40, 0, 100));
+            setW('simHumB', map(kelembapan, 20, 95, 0, 100));
+            setW('simLdrB', (cahaya / 4095) * 100);
+            setW('simMicB', suara);
+            setW('simRssiB', map(rssi, -90, -30, 0, 100));
+
+            // PIR sim chip
+            const pc = document.getElementById('pirChipSim');
+            if (pc) {
+                pc.className = 'chip ' + (SIM.pir ? 'chip-g' : 'chip-r');
+                pc.textContent = SIM.pir ? 'AKTIF' : 'OFF';
+            }
+
+            // Sensor card highlights
+            const pirEl = document.getElementById('cPir');
+            if (pirEl) { pirEl.className = 'si' + (pir ? ' hi-ok' : ''); }
+            document.getElementById('vPir').style.color = pir ? 'var(--ok)' : 'var(--tx-primary)';
+
+            const rssiOk = rssi > -70;
+            const rssiEl = document.getElementById('cRssi');
+            if (rssiEl) rssiEl.className = 'si' + (rssiOk ? '' : ' hi-err');
+            document.getElementById('vRssi').style.color = rssi > -65 ? 'var(--ok)' : rssi > -75 ? 'var(--warn)' : 'var(--err)';
+
+            // Termometer panel 2
+            set$('suhuDisp', suhu.toFixed(1) + ' °C');
+            const litC = Math.max(1, Math.round(map(suhu, 15, 40, 1, NL)));
+            set$('suhuLed', litC + ' / ' + NL);
+            const tempPct = map(suhu, 15, 40, 0, 100);
+            const tempBar = document.getElementById('tempBar');
+            if (tempBar) {
+                tempBar.style.width = clamp(tempPct, 0, 100) + '%';
+                const rT = Math.round(map(suhu, 15, 40, 0, 255));
+                const gT = Math.round(Math.max(0, map(Math.abs(suhu - 27), 0, 13, 200, 0)));
+                const bT = Math.round(clamp(map(suhu, 15, 28, 255, 0), 0, 255));
+                tempBar.style.background = `linear-gradient(90deg, #40c4ff, rgb(${rT},${gT},${bT}))`;
+            }
+
+            // VU bars
+            const lv = SIM.suara;
+            set$('vuLvl', Math.round(lv) + '%');
+            if (lv > S._peakDecay) S._peakDecay = lv;
+            else S._peakDecay = Math.max(0, S._peakDecay - .7);
+            set$('vuPeak', Math.round(S._peakDecay) + '%');
+            for (let i = 0; i < 20; i++) {
+                const bar = document.getElementById('VB' + i);
+                if (!bar) continue;
+                const thr = (i / 20) * 100;
+                const act = lv >= thr;
+                const h = act ? Math.max(4, ((lv - thr) / 100) * 70 + 4) : 3;
+                bar.style.height = h + 'px';
+                bar.style.background = act ? (i < 9 ? '#00e676' : i < 14 ? '#ffab00' : '#ff5252') : 'rgba(255,255,255,0.08)';
+            }
+
+            // Status left panel
+            set$('stMode', MNAMES[S.mode]);
+            set$('stBright', S.brightness + ' / 255');
+            set$('stEfek', ENAMES[S.efek] || ENAMES[0]);
+            const hexC = '#' + [S.r, S.g, S.b].map(v => v.toString(16).padStart(2, '0')).join('');
+            set$('stColHex', hexC.toUpperCase());
+            const d = document.getElementById('stColDot');
+            if (d) {
+                d.style.background = `rgb(${S.r},${S.g},${S.b})`;
+                d.style.boxShadow = `0 0 10px rgb(${S.r},${S.g},${S.b})`;
+            }
+
+            // Auto mode chips
+            const dark = SIM.cahaya > 2000;
+            const ldrC = document.getElementById('ldrC');
+            if (ldrC) {
+                ldrC.className = 'chip ' + (dark ? 'chip-y' : 'chip-g');
+                ldrC.textContent = dark ? '🌑 Gelap' : '☀️ Terang';
+            }
+            const pirC = document.getElementById('pirC');
+            if (pirC) {
+                pirC.className = 'chip ' + (pir ? 'chip-g' : 'chip-r');
+                pirC.textContent = pir ? '🔥 Gerak!' : '👁️ Tenang';
+            }
+            const lampOn = dark && pir && S.mode === 4;
+            const lampC = document.getElementById('lampC');
+            if (lampC) {
+                lampC.className = 'chip ' + (lampOn ? 'chip-g' : 'chip-r');
+                lampC.textContent = lampOn ? '💡 Menyala' : '💤 Standby';
+            }
+        }
+
+        /* ══════════════════════════════════════
+           POMODORO
+        ══════════════════════════════════════ */
+        let pomoInt = null;
+        function pomoStart() {
+            S.pomoFokus = +document.getElementById('pFokus').value || 25;
+            S.pomoIstirahat = +document.getElementById('pIstirahat').value || 5;
+            if (S.pomoState === 0) { S.pomoState = 1; S.pomoSisa = S.pomoFokus * 60; }
+            S.pomoRunning = true;
+            clearInterval(pomoInt);
+            pomoInt = setInterval(() => {
+                if (!S.pomoRunning) return;
+                S.pomoSisa--;
+                if (S.pomoSisa <= 0) {
+                    if (S.pomoState === 1) {
+                        S.pomoSessions = Math.min(4, S.pomoSessions + 1);
+                        S.pomoState = 2;
+                        S.pomoSisa = S.pomoIstirahat * 60;
+                        toast('☕ Selesai! Saatnya istirahat santai.');
+                    } else {
+                        S.pomoState = 1;
+                        S.pomoSisa = S.pomoFokus * 60;
+                        toast('🎯 Istirahat selesai! Fokus kembali.');
+                    }
+                }
+            }, 1000);
+            toast('▶ Pomodoro dimulai!');
+        }
+
+        function pomoPause() {
+            S.pomoRunning = !S.pomoRunning;
+            toast(S.pomoRunning ? '▶ Pomodoro dilanjutkan' : '⏸ Pomodoro dijeda');
+        }
+
+        function pomoReset() {
+            clearInterval(pomoInt);
+            S.pomoState = 0;
+            S.pomoRunning = false;
+            S.pomoSisa = S.pomoFokus * 60;
+            S.pomoSessions = 0;
+            toast('🔄 Pomodoro direset');
+        }
+
+        function renderPomo() {
+            const m = Math.floor(S.pomoSisa / 60), sc = S.pomoSisa % 60;
+            set$('pomoClock', String(m).padStart(2, '0') + ':' + String(sc).padStart(2, '0'));
+            const lbl = ['IDLE / SIAP', '🎯 SESI FOKUS', '☕ ISTIRAHAT'][S.pomoState] || 'IDLE';
+            set$('pomoLbl', lbl);
+            set$('vPomo', ['Idle', 'Fokus', 'Istirahat'][S.pomoState] || 'Idle');
+            const pC = document.getElementById('stPomo');
+            if (pC) {
+                pC.className = 'chip ' + (S.pomoState === 1 ? 'chip-p' : S.pomoState === 2 ? 'chip-g' : 'chip-r');
+                pC.textContent = ['Idle', 'Fokus', 'Istirahat'][S.pomoState] || 'Idle';
+            }
+            const total = S.pomoState === 1 ? S.pomoFokus * 60 : S.pomoIstirahat * 60;
+            const pct = S.pomoState > 0 ? clamp((total - S.pomoSisa) / total * 100, 0, 100) : 0;
+            const pb = document.getElementById('pomoBar');
+            if (pb) {
+                pb.style.width = pct + '%';
+                pb.style.background = S.pomoState === 2 ? 'linear-gradient(90deg,#059669,var(--ok))' : 'linear-gradient(90deg,#9d4edd,#ffab00)';
+            }
+            const clEl = document.getElementById('pomoClock');
+            if (clEl) {
+                clEl.style.color = S.pomoState === 2 ? 'var(--ok)' : S.pomoState === 1 ? '#fff' : 'var(--tx-muted)';
+            }
+            for (let i = 0; i < 4; i++) {
+                const d = document.getElementById('PD' + i);
+                if (d) d.className = 'ps-dot' + (i < S.pomoSessions ? ' done' : '');
+            }
+        }
+
+        /* ══════════════════════════════════════
+           AUTO-RANDOMIZE SENSORS
+        ══════════════════════════════════════ */
+        function autoRandomize() {
+            if (!SIM.autoNoise) return;
+            SIM.suhu = clamp(SIM.suhu + (Math.random() - .5) * .35, 15, 40);
+            SIM.kelembapan = clamp(SIM.kelembapan + (Math.random() - .5) * .8, 20, 95);
+            SIM.cahaya = clamp(SIM.cahaya + (Math.random() - .5) * 120, 0, 4095);
+            if (!document.getElementById('pirToggle').checked) {
+                if (!SIM.pir && Math.random() < .05) SIM.pir = true;
+                if (SIM.pir && Math.random() < .12) SIM.pir = false;
+                document.getElementById('pirToggle').checked = SIM.pir;
+            }
+            SIM.rssi = clamp(SIM.rssi + Math.round((Math.random() - .5) * 2), -90, -30);
+
+            // Sync simulation sliders
+            document.getElementById('simSuhu').value = SIM.suhu.toFixed(1);
+            document.getElementById('simSuhuV').textContent = SIM.suhu.toFixed(1);
+            document.getElementById('simHum').value = SIM.kelembapan;
+            document.getElementById('simHumV').textContent = Math.round(SIM.kelembapan);
+            document.getElementById('simLdr').value = SIM.cahaya;
+            document.getElementById('simLdrV').textContent = Math.round(SIM.cahaya);
+            document.getElementById('simRssi').value = SIM.rssi;
+            document.getElementById('simRssiV').textContent = SIM.rssi;
+        }
+
+        let beatPhase = 0, beatTimer = 0;
+        function autoMic() {
+            if (SIM.micBeat) {
+                beatTimer++;
+                const period = Math.max(8, 20 - S.efekSpeed);
+                if (beatTimer >= period) { beatTimer = 0; beatPhase++; }
+                const isBeat = [1, 0, 0, 0.6, 0, 0, 0.8, 0][beatPhase % 8];
+                const target = document.getElementById('pirToggle').checked ? SIM.suara : isBeat * 85 + Math.random() * 15;
+                SIM.suara = clamp(lerp(SIM.suara, target, .4), 0, 100);
+            } else if (S.mode === 3) {
+                SIM.suara = clamp(SIM.suara + (Math.random() - .35) * 12, 0, 100);
+            } else {
+                SIM.suara = clamp(SIM.suara + (Math.random() - .6) * 5, 0, 15);
+            }
+            document.getElementById('simMic').value = SIM.suara;
+            document.getElementById('simMicV').textContent = Math.round(SIM.suara);
+        }
+
+        /* ══════════════════════════════════════
+           CONTROLS & EVENT HANDLERS
+        ══════════════════════════════════════ */
+        function switchMode(idx) {
+            S.mode = idx;
+            document.querySelectorAll('.tab').forEach((b, i) => b.classList.toggle('on', i === idx));
+            document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('on', i === idx));
+            ['pB', 'pS', 'pT'].forEach(id => document.getElementById(id)?.classList.remove('on'));
+            toast('Mode Diubah: ' + MNAMES[idx]);
+        }
+
+        function onHexChange() {
+            const hex = document.getElementById('cpick').value;
+            S.r = parseInt(hex.substr(1, 2), 16);
+            S.g = parseInt(hex.substr(3, 2), 16);
+            S.b = parseInt(hex.substr(5, 2), 16);
+            document.getElementById('rS').value = S.r;
+            document.getElementById('gS').value = S.g;
+            document.getElementById('bS').value = S.b;
+            syncRGBDisplay();
+        }
+
+        function onRGBChange() {
+            S.r = +document.getElementById('rS').value;
+            S.g = +document.getElementById('gS').value;
+            S.b = +document.getElementById('bS').value;
+            const hex = '#' + [S.r, S.g, S.b].map(v => v.toString(16).padStart(2, '0')).join('');
+            document.getElementById('cpick').value = hex;
+            syncRGBDisplay();
+        }
+
+        function syncRGBDisplay() {
+            set$('rV', S.r); set$('gV', S.g); set$('bV', S.b);
+            setW('rBar', (S.r / 255) * 100);
+            setW('gBar', (S.g / 255) * 100);
+            setW('bBar', (S.b / 255) * 100);
+            const hex = '#' + [S.r, S.g, S.b].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+            const cp = document.getElementById('cprev');
+            if (cp) {
+                cp.style.background = `rgb(${S.r},${S.g},${S.b})`;
+                cp.style.boxShadow = `0 4px 20px rgba(${S.r},${S.g},${S.b},0.4)`;
+                const lum = (S.r * .299 + S.g * .587 + S.b * .114);
+                cp.textContent = hex;
+                cp.style.color = lum > 130 ? '#000000' : '#ffffff';
+            }
+        }
+
+        function applyManual() {
+            S.mode = 0;
+            switchMode(0);
+            toast('🎨 Warna Diterapkan: ' + document.getElementById('cpick').value.toUpperCase());
+        }
+
+        function pickEfek(i) {
+            S.efek = i;
+            document.querySelectorAll('.echip').forEach((c, j) => c.classList.toggle('on', j === i));
+            toast('✨ Efek Aktif: ' + ENAMES[i]);
+        }
+
+        function preset(name) {
+            const presets = {
+                belajar: { r: 255, g: 255, b: 255, br: 200 },
+                santai: { r: 255, g: 145, b: 20, br: 150 },
+                tidur: { r: 190, g: 15, b: 15, br: 50 }
+            };
+            const p = presets[name];
+            if (!p) return;
+            S.r = p.r; S.g = p.g; S.b = p.b; S.brightness = p.br;
+            document.getElementById('cpick').value = '#' + [p.r, p.g, p.b].map(v => v.toString(16).padStart(2, '0')).join('');
+            document.getElementById('bSlide').value = p.br;
+            document.getElementById('bV2').textContent = p.br;
+            syncRGBDisplay();
+            ['pB', 'pS', 'pT'].forEach(id => document.getElementById(id)?.classList.remove('on'));
+            document.getElementById({ belajar: 'pB', santai: 'pS', tidur: 'pT' }[name])?.classList.add('on');
+            S.mode = 0;
+            switchMode(0);
+            toast('⚡ Preset Aktif: ' + name.charAt(0).toUpperCase() + name.slice(1));
+        }
+
+        /* ══════════════════════════════════════
+           MAIN ANIMATION LOOP (~60 FPS)
+        ══════════════════════════════════════ */
+        let lastSensor = 0;
+        function loop() {
+            const now = Date.now();
+            frameCount++;
+            if (now - fpsTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                fpsTime = now;
+                set$('fpsB', '⚡ ' + fps + ' FPS');
+            }
+
+            autoMic();
+
+            if (now - lastSensor > 2000) {
+                autoRandomize();
+                lastSensor = now;
+            }
+
+            computeLEDs();
+            renderLamp();
+            renderSensors();
+            renderPomo();
+
+            requestAnimationFrame(loop);
+        }
+
+        // Init & Run
+        syncRGBDisplay();
+        requestAnimationFrame(loop);
+    </script>
+</body>
+
+</html>
